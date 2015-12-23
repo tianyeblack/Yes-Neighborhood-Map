@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Neighborhood Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css" href="css/responsive.css">
+</head>
+<body>
+  <div id="header__input">
+    <img id="menu__nav" src="img/menu.png" data-bind="click: toggleNav" />
+    <input id="search__bar" type="text" data-bind="value: query, valueUpdate:'keyup'"/>
+  </div>
+  <div id="content">
+    <div id="drawer" class="nav">
+      <ul class="nav__list" data-bind="foreach: locations">
+        <li class="nav__item" data-bind="text: $data.loc, visible: $data.vis() == true, click: $parent.openInfoWindow"></li>
+      </ul>
+    </div>
+    <div id="map" data-bind="map: locations"></div>
+  </div>
+  <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?libraries=places"></script>
+  <script type="text/javascript" src="bower_components/jquery/dist/jquery.min.js"></script>
+  <script type="text/javascript" src="bower_components/knockout/dist/knockout.debug.js"></script>
+  <script type="text/javascript" src="js/app.js" async></script>
+</body>
+</html>

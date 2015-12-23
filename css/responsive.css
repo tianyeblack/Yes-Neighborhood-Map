@@ -1,0 +1,70 @@
+#header__input {
+  height: 32px;
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+#menu__nav {
+  margin-right: 1em;
+}
+
+#search__bar {
+  height: 100%;
+  width: 100%;
+}
+
+#content {
+  display: flex;
+  margin-top: 1em;
+}
+
+#drawer {
+  width: 20%;
+}
+#map {
+  height: 600px;
+  width: 80%;
+}
+
+.nav {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.nav__list {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+.nav__item {
+  box-sizing: border-box;
+  width: 100%;
+  text-align: center;
+  text-transform: uppercase;
+  display: list-item;
+}
+
+@media screen and (max-width: 549px) {
+  .nav {
+    z-index: 10;
+    background-color: #fff;
+    width: 300px;
+    position: absolute;
+    /* This trasform moves the drawer off canvas. */
+    -webkit-transform: translate(-300px, 0);
+    transform: translate(-300px, 0);
+    /* Optionally, we animate the drawer. */
+    transition: transform 0.3s ease;
+  }
+  .nav.open {
+    -webkit-transform: translate(0, 0);
+    transform: translate(0, 0);
+  }
+  .nav__item {
+    border-bottom: 1px solid #E0E0E0;
+    width: 100%;
+    text-align: left;
+  }
+}
