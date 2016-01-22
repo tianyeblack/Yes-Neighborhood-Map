@@ -1,6 +1,9 @@
 var gmap = google.maps;
+var yelpQuery = "https://api.yelp.com/v2/search/?term=restaurants&location=2840 Eastlake Ave E, Seattle, WA&limit=20&radius_filter=2500";
+var home = new gmap.LatLng(47.64667360000001, -122.32474719999999);
+var searchRadius = '750';
 
-function createInfoWindowContent(title, address) {
+function createInfoWindowContentHelper(title, address) {
   var titleNode = document.createElement('h2');
   var titleText = document.createTextNode(title);
   var addrText = document.createTextNode(address);
@@ -11,43 +14,52 @@ function createInfoWindowContent(title, address) {
   return result;
 }
 
+var Location = function (iLoc) {
+  var self = this;
+  this.loc = ko.observable(iLoc);
+  this.vis = ko.observable(true);
+  this.marker = ko.observable();
+  this.infoWindow = null;
+};
+
 ko.bindingHandlers.map = {
   init: function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
     var vm = bindingContext.$data;
-    var locs = vm.locations();
     vm.map = new gmap.Map(element, { disableDefaultUI: true });
     vm.service = new gmap.places.PlacesService(vm.map);
     vm.mapBounds = new gmap.LatLngBounds();
-    function createMapMarker(loc) {
-      if (loc.vis()) {
-        vm.service.textSearch({query: loc.loc()}, function (results, status) {
-          if (status == gmap.places.PlacesServiceStatus.OK) {
-            var placeData = results[0];
-            var name = placeData.formatted_address;                             // name of the place from the place service
-            var geoLoc = placeData.geometry.location;
-            var marker = new gmap.Marker({
-              map: vm.map,
-              position: geoLoc,
-              animation: gmap.Animation.DROP,
-              title: name
-            });
-            loc.infoWindow = new gmap.InfoWindow({
-              content: createInfoWindowContent(loc.loc(), name)
-            });
-            marker.addListener('click', function () {
-              loc.infoWindow.open(vm.map, marker);
-              marker.setAnimation((marker.getAnimation() !== null ? null : google.maps.Animation.BOUNCE));
-            });
-            loc.marker(marker);
-            vm.mapBounds.extend(new google.maps.LatLng(
-              geoLoc.lat(), geoLoc.lng()));                                     // bounds.extend() takes in a map location object
-            vm.map.fitBounds(vm.mapBounds);                                     // fit the map to the new marker
-            vm.map.setCenter(vm.mapBounds.getCenter());                         // center the map
-          }
+
+    function createMapMarkers() {
+      function createMarker(newLoc, rslt) {
+        var name = rslt.vicinity;
+        var geoLoc = rslt.geometry.location;
+        var marker = new gmap.Marker({ map: vm.map, position: geoLoc, animation: gmap.Animation.DROP, title: name });
+        newLoc.infoWindow = new gmap.InfoWindow({ content: createInfoWindowContentHelper(newLoc.loc(), name) });
+        marker.addListener('click', function () {
+          newLoc.infoWindow.open(vm.map, marker);
+          marker.setAnimation(gmap.Animation.BOUNCE);
+          setTimeout(function () { marker.setAnimation(null); }, 1500);
         });
+        newLoc.marker(marker);
+        vm.mapBounds.extend(new gmap.LatLng(geoLoc.lat(), geoLoc.lng()));
+        vm.map.fitBounds(vm.mapBounds);
       }
+
+      var request = { location: home, radius: searchRadius, types: ['restaurant'] };
+      vm.service.nearbySearch(request, function (rslts, status) {
+        if (status == gmap.places.PlacesServiceStatus.OK) {
+          for (var i = 0; i < rslts.length; i++) {
+            var newLoc = new Location(rslts[i].name);
+            vm.locations.push(newLoc);
+            createMarker(newLoc, rslts[i]);
+          }
+        }
+      });
+
+      vm.map.setCenter(vm.mapBounds.getCenter());
     }
-    for (var i = 0; i < locs.length; i++) createMapMarker(locs[i]);
+    createMapMarkers();
+
     window.addEventListener('resize', function(e) {
       vm.map.fitBounds(vm.mapBounds);
     });
@@ -57,19 +69,10 @@ ko.bindingHandlers.map = {
     var locs = bindingContext.$data.locations();
     locs.forEach(function (loc) {
       if (loc.marker() != null) loc.marker().setVisible(loc.vis());
+      if (loc.vis() == false && loc.infoWindow != null) loc.infoWindow.close();
     });
   }
 };
-
-var Location = function (iLoc) {
-  var self = this;
-  this.loc = ko.observable(iLoc);
-  this.vis = ko.observable(true);
-  this.marker = ko.observable();
-  this.infoWindow = null;
-};
-
-var initialLocations = ["home", "work"];
 
 var MapViewModel = function () {
   var self = this;
@@ -79,10 +82,6 @@ var MapViewModel = function () {
   this.map = null;
   this.service = null;
   this.mapBounds = null;
-
-  initialLocations.forEach(function (iLoc) {
-    self.locations.push(new Location(iLoc));
-  });
 
   this.search = function (value) {
     var locs = self.locations();
