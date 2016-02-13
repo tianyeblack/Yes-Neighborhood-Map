@@ -22,7 +22,7 @@
   width: 20%;
 }
 #map {
-  height: 600px;
+  height: 800px;
   width: 80%;
 }
 
@@ -33,20 +33,24 @@
 }
 
 .nav__list {
-  width: 100%;
-  padding: 0;
   margin: 0;
+  padding-left: 20px;
+  list-style-type: square;
 }
 
 .nav__item {
-  box-sizing: border-box;
   width: 100%;
-  text-align: center;
-  text-transform: uppercase;
+  text-align: left;
   display: list-item;
 }
 
-@media screen and (max-width: 549px) {
+@media screen and (max-width: 799px) {
+  #map {
+    width: 100%;
+  }
+  #drawer {
+    width: 300px;
+  }
   .nav {
     z-index: 10;
     background-color: #fff;
@@ -66,5 +70,14 @@
     border-bottom: 1px solid #E0E0E0;
     width: 100%;
     text-align: left;
+  }
+}
+
+@media screen and (min-width: 1920px) {
+  #map {
+    width: 84%;
+  }
+  #drawer {
+    width: 16%;
   }
 }
