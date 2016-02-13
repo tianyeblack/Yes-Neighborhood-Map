@@ -1,7 +1,7 @@
 # Yes-Neighborhood-Map
 This is a web neighborhood map application, my project for FEND P5
 
-Steps to run the application
+## Steps to run the application
 1. Go to http://tianyeblack.github.io/YesNBMap/
 2. Click on the left side list items to open markers' info windows in the map
 3. Type in the top input box to filter locations based on name prefix
