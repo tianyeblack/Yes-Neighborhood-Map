@@ -1,8 +1,57 @@
 var gmap = google.maps;
-var yelpQuery = "https://api.yelp.com/v2/search/?term=restaurants&location=2840 Eastlake Ave E, Seattle, WA&limit=20&radius_filter=2500";
 var home = new gmap.LatLng(47.64667360000001, -122.32474719999999);
-var searchRadius = '750';
+var searchRadius = '3000';
 
+// Variables for Yelp API OAuth and query
+var auth = {
+  consumerKey : "1phcfdEMG3AxYfya-ZyUTw",
+  consumerSecret : "SmnvCJ34s6R57EfDRRjxmDq0cKI",
+  accessToken : "1YyHFhBoU0qX8iyKRW-8iiLY9pxnoxhJ",
+  accessTokenSecret : "yNQHE3l0LgDo0H3757r_6rPy88M",
+  serviceProvider : { signatureMethod : "HMAC-SHA1" }
+};
+
+var accessor = {
+  consumerSecret : auth.consumerSecret,
+  tokenSecret : auth.accessTokenSecret
+};
+
+var message = {
+  action : 'http://api.yelp.com/v2/search',
+  method: 'GET',
+  parameters: [
+    ['term', 'food'],
+    ['location', '2840 Eastlake Ave E, Seattle, WA 98102'],
+    ['radius_filter', 1500],
+    ['callback', 'cb'],
+    ['oauth_consumer_key', auth.consumerKey],
+    ['oauth_token', auth.accessToken],
+    ['oauth_signature_method', 'HMAC-SHA1']
+  ]
+};
+
+// Sign the query with key and secret of consumer and token
+OAuth.setTimestampAndNonce(message);
+OAuth.SignatureMethod.sign(message, accessor);
+
+// Send an AJAX to Yelp API to fetch the restaurants in the neighborhood
+$.ajax({
+  url: message.action,
+  data: OAuth.getParameterMap(message.parameters),
+  dataType: 'jsonp',
+  jsonpCallback: 'cb',
+  cache: true
+}).done(function (data) {
+  var biz = data.businesses;
+  locations = []
+  for (var i = 0; i < biz.length; i++) locations.push(new Location(biz[i]));
+  vm.locations(locations);
+}).fail(function (data) {
+  alert("Neighborhood restaurants not available now. Please make sure your network connection is working and try refreshing the page");
+});
+
+// Helper function to create InfoWindow for markers
+// Done manually in favor of speed since it's simple enough
 function createInfoWindowContentHelper(title, address) {
   var titleNode = document.createElement('h2');
   var titleText = document.createTextNode(title);
@@ -14,63 +63,63 @@ function createInfoWindowContentHelper(title, address) {
   return result;
 }
 
-var Location = function (iLoc) {
+// Create markers in the map with newly created locations and extend the bounds of map properly to have every marker visible in view
+function createMarker(newLoc, vmmap, vmbounds) {
+  var geoLoc = new gmap.LatLng(newLoc.biz.location.coordinate.latitude, newLoc.biz.location.coordinate.longitude);
+  var marker = new gmap.Marker({ map: vmmap, position: geoLoc, animation: gmap.Animation.DROP, title: newLoc.biz.name });
+  newLoc.infoWindow = new gmap.InfoWindow({ content: createInfoWindowContentHelper(newLoc.loc(), newLoc.biz.snippet_text) });
+  marker.addListener('click', function () {
+    newLoc.infoWindow.open(vmmap, marker);
+    marker.setAnimation(gmap.Animation.BOUNCE);
+    setTimeout(function () { marker.setAnimation(null); }, 1500);
+  });
+  newLoc.marker(marker);
+  vmbounds.extend(new gmap.LatLng(geoLoc.lat(), geoLoc.lng()));
+  vmmap.fitBounds(vmbounds);
+}
+
+// Initialize a new Location
+var Location = function (biz) {
   var self = this;
-  this.loc = ko.observable(iLoc);
+  this.loc = ko.observable(biz.name);
   this.vis = ko.observable(true);
   this.marker = ko.observable();
   this.infoWindow = null;
+  this.biz = biz;
+  this.searched = false;
 };
 
 ko.bindingHandlers.map = {
   init: function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
     var vm = bindingContext.$data;
-    vm.map = new gmap.Map(element, { disableDefaultUI: true });
-    vm.service = new gmap.places.PlacesService(vm.map);
-    vm.mapBounds = new gmap.LatLngBounds();
+    vmmap = new gmap.Map(element, { disableDefaultUI: true });
+    vmservice = new gmap.places.PlacesService(vmmap);
+    vmbounds = new gmap.LatLngBounds();
 
-    function createMapMarkers() {
-      function createMarker(newLoc, rslt) {
-        var name = rslt.vicinity;
-        var geoLoc = rslt.geometry.location;
-        var marker = new gmap.Marker({ map: vm.map, position: geoLoc, animation: gmap.Animation.DROP, title: name });
-        newLoc.infoWindow = new gmap.InfoWindow({ content: createInfoWindowContentHelper(newLoc.loc(), name) });
-        marker.addListener('click', function () {
-          newLoc.infoWindow.open(vm.map, marker);
-          marker.setAnimation(gmap.Animation.BOUNCE);
-          setTimeout(function () { marker.setAnimation(null); }, 1500);
-        });
-        newLoc.marker(marker);
-        vm.mapBounds.extend(new gmap.LatLng(geoLoc.lat(), geoLoc.lng()));
-        vm.map.fitBounds(vm.mapBounds);
-      }
-
-      var request = { location: home, radius: searchRadius, types: ['restaurant'] };
-      vm.service.nearbySearch(request, function (rslts, status) {
-        if (status == gmap.places.PlacesServiceStatus.OK) {
-          for (var i = 0; i < rslts.length; i++) {
-            var newLoc = new Location(rslts[i].name);
-            vm.locations.push(newLoc);
-            createMarker(newLoc, rslts[i]);
-          }
-        }
-      });
-
-      vm.map.setCenter(vm.mapBounds.getCenter());
+    // Create map markers, in case Yelp API return faster than Google Map API
+    var locs = vm.locations();
+    for (var x = 0; x < locs.length; x++) {
+      createMarker(locs[x], vmmap, vmbounds);
     }
-    createMapMarkers();
 
+    // Add resizing event so when window size changes map changes accordingly
     window.addEventListener('resize', function(e) {
-      vm.map.fitBounds(vm.mapBounds);
+      vm.map.fitBounds(vm.bounds);
     });
+    vm.map = vmmap;
+    vm.service = vmservice;
+    vm.bounds = vmbounds;
   },
 
+  // Update existing markers status and create markers for newly added locations
   update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
     var locs = bindingContext.$data.locations();
-    locs.forEach(function (loc) {
+    for (var i = 0; i < locs.length; i++) {
+      loc = locs[i];
       if (loc.marker() != null) loc.marker().setVisible(loc.vis());
+      else if (loc.biz != null) createMarker(loc, vm.map, vm.bounds);
       if (loc.vis() == false && loc.infoWindow != null) loc.infoWindow.close();
-    });
+    };
   }
 };
 
@@ -81,8 +130,9 @@ var MapViewModel = function () {
   this.locations = ko.observableArray([]);
   this.map = null;
   this.service = null;
-  this.mapBounds = null;
+  this.bounds = null;
 
+  // Simple filter for locations based on prefix
   this.search = function (value) {
     var locs = self.locations();
     for (var x = 0; x < locs.length; x++) {
@@ -91,21 +141,22 @@ var MapViewModel = function () {
     }
   }
 
+  // In smaller screens, list is hidden but can be called out clicking on the hamburger button
   this.toggleNav = function (data, event) {
     var placeList = document.querySelector('.nav');
     placeList.classList.toggle('open');
     event.stopPropagation();
   };
 
+  // Cascade the click event on list item to open corresponding markers
   this.openInfoWindow = function (data, event) {
-    gmap.event.trigger(data.marker(), 'click');
+    if (data.marker()) gmap.event.trigger(data.marker(), 'click');
   };
 
   this.query.subscribe(this.search);
 };
 
 var vm = new MapViewModel();
-ko.applyBindings(vm);
-// $(document).ready(function () {
-//   ko.applyBindings();
-// });
+$(document).ready(function () {
+  ko.applyBindings(vm);
+});
