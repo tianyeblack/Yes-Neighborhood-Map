@@ -69,8 +69,10 @@ function createMarker(newLoc, vmmap, vmbounds) {
   var marker = new gmap.Marker({ map: vmmap, position: geoLoc, animation: gmap.Animation.DROP, title: newLoc.biz.name });
   newLoc.infoWindow = new gmap.InfoWindow({ content: createInfoWindowContentHelper(newLoc.loc(), newLoc.biz.snippet_text) });
   marker.addListener('click', function () {
-    newLoc.infoWindow.open(vmmap, marker);
+    if (vm.infoWindow) vm.infoWindow.close();
+    vm.infoWindow = newLoc.infoWindow;
     marker.setAnimation(gmap.Animation.BOUNCE);
+    vm.infoWindow.open(vmmap, marker);
     setTimeout(function () { marker.setAnimation(null); }, 1500);
   });
   newLoc.marker(marker);
@@ -93,6 +95,7 @@ ko.bindingHandlers.map = {
   init: function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
     var vm = bindingContext.$data;
     vmmap = new gmap.Map(element, { disableDefaultUI: true });
+    if (vmmap === null) return;
     vmservice = new gmap.places.PlacesService(vmmap);
     vmbounds = new gmap.LatLngBounds();
 
@@ -113,6 +116,7 @@ ko.bindingHandlers.map = {
 
   // Update existing markers status and create markers for newly added locations
   update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
+    if (vmmap === null) return;
     var locs = bindingContext.$data.locations();
     for (var i = 0; i < locs.length; i++) {
       loc = locs[i];
@@ -131,6 +135,7 @@ var MapViewModel = function () {
   this.map = null;
   this.service = null;
   this.bounds = null;
+  this.infoWindow = null;
 
   // Simple filter for locations based on prefix
   this.search = function (value) {

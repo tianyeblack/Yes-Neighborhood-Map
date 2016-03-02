@@ -16,13 +16,15 @@
 #content {
   display: flex;
   margin-top: 1em;
+  height: 93%;
 }
 
 #drawer {
   width: 20%;
 }
+
 #map {
-  height: 800px;
+  height: inherit;
   width: 80%;
 }
 
@@ -42,6 +44,10 @@
   width: 100%;
   text-align: left;
   display: list-item;
+}
+
+html, body {
+  height: 100%;
 }
 
 @media screen and (max-width: 799px) {
