@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Neighborhood Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" type="text/css" href="css/responsive.css">
+  <link rel="stylesheet" href="css/responsive.css">
 </head>
 <body>
   <div id="header__input">
@@ -12,18 +12,18 @@
     <input id="search__bar" type="text" data-bind="value: query, valueUpdate:'keyup'"/>
   </div>
   <div id="content">
-    <div id="drawer" class="nav">
+    <div id="drawer" class="nav" data-bind="css: { open: navOpen }">
       <ul class="nav__list" data-bind="foreach: locations">
         <li class="nav__item" data-bind="text: $data.loc, visible: $data.vis() == true, click: $parent.openInfoWindow"></li>
       </ul>
     </div>
     <div id="map" data-bind="map: locations"></div>
   </div>
-  <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?libraries=places"></script>
-  <script type="text/javascript" src="bower_components/jquery/dist/jquery.min.js"></script>
-  <script type="text/javascript" src="bower_components/knockout/dist/knockout.debug.js"></script>
-  <script type="text/javascript" src="http://oauth.googlecode.com/svn/code/javascript/oauth.js"></script>
-  <script type="text/javascript" src="http://oauth.googlecode.com/svn/code/javascript/sha1.js"></script>
-  <script type="text/javascript" src="js/app.js" async></script>
+  <script src="bower_components/jquery/dist/jquery.min.js"></script>
+  <script src="bower_components/knockout/dist/knockout.debug.js"></script>
+  <script src="http://oauth.googlecode.com/svn/code/javascript/oauth.js"></script>
+  <script src="http://oauth.googlecode.com/svn/code/javascript/sha1.js"></script>
+  <script src="http://maps.googleapis.com/maps/api/js?libraries=places&callback=initMap" onerror="mapError()" async defer></script>
+  <script src="js/app.js" async defer></script>
 </body>
 </html>

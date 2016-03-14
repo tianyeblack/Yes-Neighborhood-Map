@@ -1,6 +1,4 @@
-var gmap = google.maps;
-var home = new gmap.LatLng(47.64667360000001, -122.32474719999999);
-var searchRadius = '3000';
+'use strict';
 
 // Variables for Yelp API OAuth and query
 var auth = {
@@ -34,6 +32,10 @@ var message = {
 OAuth.setTimestampAndNonce(message);
 OAuth.SignatureMethod.sign(message, accessor);
 
+var yelpRequestTimeout = setTimeout(function () {
+  alert("Requests to Yelp timed out. Please check your network and refresh the page.")
+}, 8000);
+
 // Send an AJAX to Yelp API to fetch the restaurants in the neighborhood
 $.ajax({
   url: message.action,
@@ -43,9 +45,10 @@ $.ajax({
   cache: true
 }).done(function (data) {
   var biz = data.businesses;
-  locations = []
+  var locations = [];
   for (var i = 0; i < biz.length; i++) locations.push(new Location(biz[i]));
   vm.locations(locations);
+  clearTimeout(yelpRequestTimeout);
 }).fail(function (data) {
   alert("Neighborhood restaurants not available now. Please make sure your network connection is working and try refreshing the page");
 });
@@ -61,6 +64,18 @@ function createInfoWindowContentHelper(title, address) {
   result.appendChild(titleNode);
   result.appendChild(addrText);
   return result;
+}
+
+var gmap, home, searchRadius;
+
+function initMap() {
+  gmap = google.maps;
+  home = new gmap.LatLng(47.64667360000001, -122.32474719999999);
+  searchRadius = '3000';
+}
+
+function mapError() {
+  alert("Fail to load Google Maps, refresh the page or try again later.");
 }
 
 // Create markers in the map with newly created locations and extend the bounds of map properly to have every marker visible in view
@@ -94,10 +109,10 @@ var Location = function (biz) {
 ko.bindingHandlers.map = {
   init: function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
     var vm = bindingContext.$data;
-    vmmap = new gmap.Map(element, { disableDefaultUI: true });
+    var vmmap = new gmap.Map(element, { disableDefaultUI: true });
     if (vmmap === null) return;
-    vmservice = new gmap.places.PlacesService(vmmap);
-    vmbounds = new gmap.LatLngBounds();
+    var vmservice = new gmap.places.PlacesService(vmmap);
+    var vmbounds = new gmap.LatLngBounds();
 
     // Create map markers, in case Yelp API return faster than Google Map API
     var locs = vm.locations();
@@ -116,13 +131,13 @@ ko.bindingHandlers.map = {
 
   // Update existing markers status and create markers for newly added locations
   update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
-    if (vmmap === null) return;
+    if (vm.map === null) return;
     var locs = bindingContext.$data.locations();
     for (var i = 0; i < locs.length; i++) {
-      loc = locs[i];
-      if (loc.marker() != null) loc.marker().setVisible(loc.vis());
-      else if (loc.biz != null) createMarker(loc, vm.map, vm.bounds);
-      if (loc.vis() == false && loc.infoWindow != null) loc.infoWindow.close();
+      var loc = locs[i];
+      if (loc.marker()) loc.marker().setVisible(loc.vis());
+      else if (loc.biz !== null) createMarker(loc, vm.map, vm.bounds);
+      if (loc.vis() === false && loc.infoWindow !== null) loc.infoWindow.close();
     };
   }
 };
@@ -136,6 +151,7 @@ var MapViewModel = function () {
   this.service = null;
   this.bounds = null;
   this.infoWindow = null;
+  this.navOpen = ko.observable(false);
 
   // Simple filter for locations based on prefix
   this.search = function (value) {
@@ -148,8 +164,7 @@ var MapViewModel = function () {
 
   // In smaller screens, list is hidden but can be called out clicking on the hamburger button
   this.toggleNav = function (data, event) {
-    var placeList = document.querySelector('.nav');
-    placeList.classList.toggle('open');
+    self.navOpen(!self.navOpen());
     event.stopPropagation();
   };
 
