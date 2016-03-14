@@ -54,9 +54,11 @@ html, body {
   #map {
     width: 100%;
   }
+
   #drawer {
     width: 300px;
   }
+
   .nav {
     z-index: 10;
     background-color: #fff;
@@ -68,12 +70,14 @@ html, body {
     /* Optionally, we animate the drawer. */
     transition: transform 0.3s ease;
   }
+
   .nav.open {
     -webkit-transform: translate(0, 0);
     transform: translate(0, 0);
   }
+
   .nav__item {
-    border-bottom: 1px solid #E0E0E0;
+    border-bottom: 1px solid #e0e0e0;
     width: 100%;
     text-align: left;
   }
@@ -83,6 +87,7 @@ html, body {
   #map {
     width: 84%;
   }
+
   #drawer {
     width: 16%;
   }
