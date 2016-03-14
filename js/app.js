@@ -17,7 +17,6 @@ function initMap() {
   gmap = google.maps;
   home = new gmap.LatLng(47.64667360000001, -122.32474719999999);
   searchRadius = '3000';
-  if (vm !== null && vm.map === null && vm.mapElement !== null) createMap(vm, vm.mapElement);
 }
 
 function mapError() {
@@ -48,12 +47,6 @@ function createMap(viewModel, element) {
   var vmservice = new gmap.places.PlacesService(vmmap);
   var vmbounds = new gmap.LatLngBounds();
 
-  // Create map markers, in case Yelp API return faster than Google Map API
-  var locs = vm.locations();
-  for (var x = 0; x < locs.length; x++) {
-    createMarker(locs[x], vmmap, vmbounds);
-  }
-
   // Add resizing event so when window size changes map changes accordingly
   window.addEventListener('resize', function(e) {
     vmmap.fitBounds(vmbounds);
@@ -61,7 +54,6 @@ function createMap(viewModel, element) {
   viewModel.service = vmservice;
   viewModel.bounds = vmbounds;
   var locs = viewModel.locations();
-  if (!locs) return;
   for (var i = 0; i < locs.length; i++) createMarker(locs[i], vmmap, vmbounds);
 }
 
@@ -82,16 +74,13 @@ ko.bindingHandlers.map = {
     vm.mapElement = element;
   },
 
-  // Update existing markers status and create markers for newly added locations
+  // Update existing markers status
   update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
     var vm = bindingContext.$data;
     if (vm.map === null) return;
     var locs = vm.locations();
     for (var i = 0; i < locs.length; i++) {
       var loc = locs[i];
-      if (loc.marker()) loc.marker().setVisible(loc.vis());
-      else if (loc.biz !== null) createMarker(loc, vm.map, vm.bounds);
-      if (loc.vis() === false && loc.infoWindow !== null) loc.infoWindow.close();
     };
   }
 };
@@ -154,24 +143,26 @@ var MapViewModel = function () {
       cache: true
     }).done(function (data) {
       var biz = data.businesses;
-      var locations = [];
-      for (var i = 0; i < biz.length; i++) locations.push(new Location(biz[i]));
-      self.locations(locations);
+      for (var i = 0; i < biz.length; i++) self.locations.push(new Location(biz[i]));
       clearTimeout(yelpRequestTimeout);
       if (!gmap) return;
       createMap(self, self.mapElement);
     }).fail(function (data) {
       alert("Neighborhood restaurants not available now. Please make sure your network connection is working and try refreshing the page");
     });
-  }
+  };
+
   // Simple filter for locations based on prefix
   this.search = function (value) {
     var locs = self.locations();
     for (var x = 0; x < locs.length; x++) {
-      if (locs[x].loc().toLowerCase().indexOf(value.toLowerCase()) >= 0) locs[x].vis(true);
-      else locs[x].vis(false);
+      var loc = locs[x];
+      if (loc.loc().toLowerCase().indexOf(value.toLowerCase()) >= 0) loc.vis(true);
+      else loc.vis(false);
+      if (loc.marker()) loc.marker().setVisible(loc.vis());
+      if (loc.vis() === false && loc.infoWindow !== null) loc.infoWindow.close();
     }
-  }
+  };
 
   // In smaller screens, list is hidden but can be called out clicking on the hamburger button
   this.toggleNav = function (data, event) {
