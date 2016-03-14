@@ -1,58 +1,3 @@
-'use strict';
-
-// Variables for Yelp API OAuth and query
-var auth = {
-  consumerKey : "1phcfdEMG3AxYfya-ZyUTw",
-  consumerSecret : "SmnvCJ34s6R57EfDRRjxmDq0cKI",
-  accessToken : "1YyHFhBoU0qX8iyKRW-8iiLY9pxnoxhJ",
-  accessTokenSecret : "yNQHE3l0LgDo0H3757r_6rPy88M",
-  serviceProvider : { signatureMethod : "HMAC-SHA1" }
-};
-
-var accessor = {
-  consumerSecret : auth.consumerSecret,
-  tokenSecret : auth.accessTokenSecret
-};
-
-var message = {
-  action : 'http://api.yelp.com/v2/search',
-  method: 'GET',
-  parameters: [
-    ['term', 'food'],
-    ['location', '2840 Eastlake Ave E, Seattle, WA 98102'],
-    ['radius_filter', 1500],
-    ['callback', 'cb'],
-    ['oauth_consumer_key', auth.consumerKey],
-    ['oauth_token', auth.accessToken],
-    ['oauth_signature_method', 'HMAC-SHA1']
-  ]
-};
-
-// Sign the query with key and secret of consumer and token
-OAuth.setTimestampAndNonce(message);
-OAuth.SignatureMethod.sign(message, accessor);
-
-var yelpRequestTimeout = setTimeout(function () {
-  alert("Requests to Yelp timed out. Please check your network and refresh the page.")
-}, 8000);
-
-// Send an AJAX to Yelp API to fetch the restaurants in the neighborhood
-$.ajax({
-  url: message.action,
-  data: OAuth.getParameterMap(message.parameters),
-  dataType: 'jsonp',
-  jsonpCallback: 'cb',
-  cache: true
-}).done(function (data) {
-  var biz = data.businesses;
-  var locations = [];
-  for (var i = 0; i < biz.length; i++) locations.push(new Location(biz[i]));
-  vm.locations(locations);
-  clearTimeout(yelpRequestTimeout);
-}).fail(function (data) {
-  alert("Neighborhood restaurants not available now. Please make sure your network connection is working and try refreshing the page");
-});
-
 // Helper function to create InfoWindow for markers
 // Done manually in favor of speed since it's simple enough
 function createInfoWindowContentHelper(title, address) {
@@ -72,6 +17,7 @@ function initMap() {
   gmap = google.maps;
   home = new gmap.LatLng(47.64667360000001, -122.32474719999999);
   searchRadius = '3000';
+  if (vm !== null && vm.map === null) createMap(vm, vm.mapElement);
 }
 
 function mapError() {
@@ -95,6 +41,30 @@ function createMarker(newLoc, vmmap, vmbounds) {
   vmmap.fitBounds(vmbounds);
 }
 
+function createMap(viewModel, element) {
+  var vmmap = new gmap.Map(element, { disableDefaultUI: true });
+  if (vmmap === null) return;
+  viewModel.map = vmmap;
+  var vmservice = new gmap.places.PlacesService(vmmap);
+  var vmbounds = new gmap.LatLngBounds();
+
+  // Create map markers, in case Yelp API return faster than Google Map API
+  var locs = vm.locations();
+  for (var x = 0; x < locs.length; x++) {
+    createMarker(locs[x], vmmap, vmbounds);
+  }
+
+  // Add resizing event so when window size changes map changes accordingly
+  window.addEventListener('resize', function(e) {
+    vmmap.fitBounds(vmbounds);
+  });
+  viewModel.service = vmservice;
+  viewModel.bounds = vmbounds;
+  var locs = viewModel.locations();
+  if (!locs) return;
+  for (var i = 0; i < locs.length; i++) createMarker(locs[i], vmmap, vmbounds);
+}
+
 // Initialize a new Location
 var Location = function (biz) {
   var self = this;
@@ -109,30 +79,14 @@ var Location = function (biz) {
 ko.bindingHandlers.map = {
   init: function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
     var vm = bindingContext.$data;
-    var vmmap = new gmap.Map(element, { disableDefaultUI: true });
-    if (vmmap === null) return;
-    var vmservice = new gmap.places.PlacesService(vmmap);
-    var vmbounds = new gmap.LatLngBounds();
-
-    // Create map markers, in case Yelp API return faster than Google Map API
-    var locs = vm.locations();
-    for (var x = 0; x < locs.length; x++) {
-      createMarker(locs[x], vmmap, vmbounds);
-    }
-
-    // Add resizing event so when window size changes map changes accordingly
-    window.addEventListener('resize', function(e) {
-      vm.map.fitBounds(vm.bounds);
-    });
-    vm.map = vmmap;
-    vm.service = vmservice;
-    vm.bounds = vmbounds;
+    vm.mapElement = element;
   },
 
   // Update existing markers status and create markers for newly added locations
   update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
+    var vm = bindingContext.$data;
     if (vm.map === null) return;
-    var locs = bindingContext.$data.locations();
+    var locs = vm.locations();
     for (var i = 0; i < locs.length; i++) {
       var loc = locs[i];
       if (loc.marker()) loc.marker().setVisible(loc.vis());
@@ -152,7 +106,64 @@ var MapViewModel = function () {
   this.bounds = null;
   this.infoWindow = null;
   this.navOpen = ko.observable(false);
+  this.mapElement = null;
 
+  this.init = function () {
+    // Variables for Yelp API OAuth and query
+    var auth = {
+      consumerKey : "1phcfdEMG3AxYfya-ZyUTw",
+      consumerSecret : "SmnvCJ34s6R57EfDRRjxmDq0cKI",
+      accessToken : "1YyHFhBoU0qX8iyKRW-8iiLY9pxnoxhJ",
+      accessTokenSecret : "yNQHE3l0LgDo0H3757r_6rPy88M",
+      serviceProvider : { signatureMethod : "HMAC-SHA1" }
+    };
+
+    var accessor = {
+      consumerSecret : auth.consumerSecret,
+      tokenSecret : auth.accessTokenSecret
+    };
+
+    var message = {
+      action : 'http://api.yelp.com/v2/search',
+      method: 'GET',
+      parameters: [
+        ['term', 'food'],
+        ['location', '2840 Eastlake Ave E, Seattle, WA 98102'],
+        ['radius_filter', 1500],
+        ['callback', 'cb'],
+        ['oauth_consumer_key', auth.consumerKey],
+        ['oauth_token', auth.accessToken],
+        ['oauth_signature_method', 'HMAC-SHA1']
+      ]
+    };
+
+    // Sign the query with key and secret of consumer and token
+    OAuth.setTimestampAndNonce(message);
+    OAuth.SignatureMethod.sign(message, accessor);
+
+    var yelpRequestTimeout = setTimeout(function () {
+      alert("Requests to Yelp timed out. Please check your network and refresh the page.")
+    }, 8000);
+
+    // Send an AJAX to Yelp API to fetch the restaurants in the neighborhood
+    $.ajax({
+      url: message.action,
+      data: OAuth.getParameterMap(message.parameters),
+      dataType: 'jsonp',
+      jsonpCallback: 'cb',
+      cache: true
+    }).done(function (data) {
+      var biz = data.businesses;
+      var locations = [];
+      for (var i = 0; i < biz.length; i++) locations.push(new Location(biz[i]));
+      self.locations(locations);
+      clearTimeout(yelpRequestTimeout);
+      if (!gmap) return;
+      createMap(self, self.mapElement);
+    }).fail(function (data) {
+      alert("Neighborhood restaurants not available now. Please make sure your network connection is working and try refreshing the page");
+    });
+  }
   // Simple filter for locations based on prefix
   this.search = function (value) {
     var locs = self.locations();
@@ -165,7 +176,6 @@ var MapViewModel = function () {
   // In smaller screens, list is hidden but can be called out clicking on the hamburger button
   this.toggleNav = function (data, event) {
     self.navOpen(!self.navOpen());
-    event.stopPropagation();
   };
 
   // Cascade the click event on list item to open corresponding markers
@@ -179,4 +189,5 @@ var MapViewModel = function () {
 var vm = new MapViewModel();
 $(document).ready(function () {
   ko.applyBindings(vm);
+  vm.init();
 });
