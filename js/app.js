@@ -17,7 +17,7 @@ function initMap() {
   gmap = google.maps;
   home = new gmap.LatLng(47.64667360000001, -122.32474719999999);
   searchRadius = '3000';
-  if (vm !== null && vm.map === null) createMap(vm, vm.mapElement);
+  if (vm !== null && vm.map === null && vm.mapElement !== null) createMap(vm, vm.mapElement);
 }
 
 function mapError() {
