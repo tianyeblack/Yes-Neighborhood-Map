@@ -17,6 +17,7 @@ function initMap() {
   gmap = google.maps;
   home = new gmap.LatLng(47.64667360000001, -122.32474719999999);
   searchRadius = '3000';
+  if (vm && !vm.map && vm.mapElement) createMap(vm, vm.mapElement);
 }
 
 function mapError() {
@@ -25,6 +26,7 @@ function mapError() {
 
 // Create markers in the map with newly created locations and extend the bounds of map properly to have every marker visible in view
 function createMarker(newLoc, vmmap, vmbounds) {
+  if (newLoc.marker()) return;
   var geoLoc = new gmap.LatLng(newLoc.biz.location.coordinate.latitude, newLoc.biz.location.coordinate.longitude);
   var marker = new gmap.Marker({ map: vmmap, position: geoLoc, animation: gmap.Animation.DROP, title: newLoc.biz.name });
   newLoc.infoWindow = new gmap.InfoWindow({ content: createInfoWindowContentHelper(newLoc.loc(), newLoc.biz.snippet_text) });
@@ -42,7 +44,7 @@ function createMarker(newLoc, vmmap, vmbounds) {
 
 function createMap(viewModel, element) {
   var vmmap = new gmap.Map(element, { disableDefaultUI: true });
-  if (vmmap === null) return;
+  if (!vmmap) return;
   viewModel.map = vmmap;
   var vmservice = new gmap.places.PlacesService(vmmap);
   var vmbounds = new gmap.LatLngBounds();
@@ -72,16 +74,6 @@ ko.bindingHandlers.map = {
   init: function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
     var vm = bindingContext.$data;
     vm.mapElement = element;
-  },
-
-  // Update existing markers status
-  update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
-    var vm = bindingContext.$data;
-    if (vm.map === null) return;
-    var locs = vm.locations();
-    for (var i = 0; i < locs.length; i++) {
-      var loc = locs[i];
-    };
   }
 };
 
